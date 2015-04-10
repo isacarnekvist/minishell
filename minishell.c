@@ -106,19 +106,24 @@ void interpret(char **args, int is_background) {
      *   |        
      * Baby: execute      
      */
-
-    pid = vfork();
+    pid = fork();
     if(0 == pid) {
+        pid = fork();
+        if(0 == pid) {
 
-        /* in child, execute the command */
-        execvp(args[0], args);
+            /* in child, execute the command */
+            execvp(args[0], args);
 
-        /* If we get here, execlp returned -1 */
-        perror("exec");
-        exit(-1);
+            /* If we get here, execlp returned -1 */
+            perror("exec");
+            exit(-1);
 
+        } else {
+            waitpid(pid, NULL, 0);
+            free_args(args);
+            exit(0);
+        }
     } else {
         waitpid(pid, NULL, 0);
-        free_args(args);
     }
 }
