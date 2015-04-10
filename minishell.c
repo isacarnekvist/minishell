@@ -18,8 +18,8 @@
 
 /* This struct is used to send timing stats when process finished */
 typedef struct ptt {
-    pid_t           pid;
-    struct timeval  time;
+    pid_t   pid;
+    int     delta_millis;
 } proc_time_t ;
 
 /* A pipe to send proc_time_t through when processes finish */
@@ -83,7 +83,8 @@ int main() {
 
         /* Check if any processes finished */
         while(poll(&proc_time_pipe_poll, 1, 0) != 0) {
-            if(-1 == read(proc_time_pipe[READ_SIDE], &proc_time, sizeof(proc_time_t))) {
+            printf("polling gave != 0\n");
+            if(-1/* == read(proc_time_pipe[READ_SIDE], &proc_time, sizeof(proc_time))*/) {
                 perror("read");
                 exit(-1);
             }
