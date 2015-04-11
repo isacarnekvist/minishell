@@ -27,10 +27,6 @@ int proc_time_pipe[2];
 
 void interpret(char **, int);
 
-/* Without these, it says implicit declaration even though stdio.h is included? */
-int getline(char**, size_t*, FILE*);
-int vfork(void);
-
 int main() {
     char *input_string;
     char **args;
@@ -38,8 +34,9 @@ int main() {
     int read_length;
     /* int return_val; */
     int is_background;
-    struct pollfd proc_time_pipe_poll;
+    struct pollfd time_poll;
     proc_time_t proc_time;
+
     linecap = CMD_MAX_LEN;
 
     /* Set up timing stats pipe */
@@ -49,8 +46,10 @@ int main() {
     }
 
     /* Set up polling of proc_time_pipe */
-    proc_time_pipe_poll.fd = proc_time_pipe[READ_SIDE];
-    proc_time_pipe_poll.events = POLLIN;
+    proc_time.pid = 0;
+    proc_time.delta_millis = 0;
+    time_poll.fd = proc_time_pipe[READ_SIDE];
+    time_poll.events = POLLIN;
 
     while(1) {
         /* Read input */
@@ -82,13 +81,12 @@ int main() {
         }
 
         /* Check if any processes finished */
-        while(poll(&proc_time_pipe_poll, 1, 0) != 0) {
-            printf("polling gave != 0\n");
-            if(-1/* == read(proc_time_pipe[READ_SIDE], &proc_time, sizeof(proc_time))*/) {
-                perror("read");
-                exit(-1);
-            }
+        while(poll(&time_poll, 1, 0)) { /* maybe &time_poll is wrong? */
+            read(proc_time_pipe[READ_SIDE], &proc_time, sizeof(proc_time));
             /* Print stats */
+            printf("Process %d terminated, %d milliseconds.\n",
+                    proc_time.pid,
+                    proc_time.delta_millis);
         }
     }
     return 0;
@@ -99,6 +97,9 @@ int main() {
  * done executing */
 void interpret(char **args, int is_background) {
     int pid; 
+    struct timeval start;
+    struct timeval stop;
+    proc_time_t proc_time;
 
     /* TODO Figure out how to separate background/foreground */
     /* Parent: fork, wait only if foreground
@@ -120,7 +121,17 @@ void interpret(char **args, int is_background) {
             exit(-1);
 
         } else {
+            /* Start timer here? */
+            gettimeofday(&start, NULL);
             waitpid(pid, NULL, 0);
+            /* Stop timer here? */
+            gettimeofday(&stop, NULL);
+            proc_time.pid = pid;
+            proc_time.delta_millis = (stop.tv_sec - start.tv_sec)*1000 +
+                                     (stop.tv_usec - start.tv_usec)/1000;
+            close(proc_time_pipe[READ_SIDE]);
+            write(proc_time_pipe[WRITE_SIDE], &proc_time, sizeof(proc_time));
+            close(proc_time_pipe[WRITE_SIDE]);
             free_args(args);
             exit(0);
         }
