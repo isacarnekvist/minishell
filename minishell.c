@@ -153,7 +153,10 @@ void interpret(char **args, int is_background) {
         /* cd to given directory, if fail, go to $HOME */
         if(-1 == chdir(args[1])) {
             home = getenv("HOME");
-            chdir(home);
+            if(-1 == chdir(home)) {
+                perror("chdir");
+                /* Not necessary to exit program here right? */
+            }
         }
 
     } else if(strcmp(args[0], "exit") == 0) {
@@ -221,9 +224,15 @@ void interpret(char **args, int is_background) {
                     proc_time.was_background = is_background;
 
                     /* Send */
-                    close(proc_time_pipe[READ_SIDE]);
-                    write(proc_time_pipe[WRITE_SIDE], &proc_time, sizeof(proc_time));
-                    close(proc_time_pipe[WRITE_SIDE]);
+                    if(-1 == close(proc_time_pipe[READ_SIDE])) {
+                        perror("close"); exit(-1);
+                    }
+                    if(-1 == write(proc_time_pipe[WRITE_SIDE], &proc_time, sizeof(proc_time))) {
+                        perror("write"); exit(-1);
+                    }
+                    if(-1 == close(proc_time_pipe[WRITE_SIDE])) {
+                        perror("close"); exit(-1);
+                    }
 
                     /* The array of arguments was allocated and must be freed */
                     free_args(args);
