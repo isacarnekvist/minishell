@@ -9,9 +9,8 @@
 #include <sys/types.h>
 #include <poll.h>
 #include "helpers.h"
-#include "proc_clock.h"
-/* #include <readline/readline.h>
- * #include <readline/history.h> */
+#include <readline/readline.h>
+#include <readline/history.h>
 
 #define CMD_MAX_LEN 80
 #define TRUE 1
@@ -86,24 +85,29 @@ int main() {
 
     while(1) {
         /* Read input */
-        printf("> ");
         input_string = NULL;
-        /* input_string = readline(prompt); */
-        read_length = getline(&input_string, &linecap, stdin);
-        input_string[read_length - 1] = '\0';
+        input_string = readline(prompt);
+        if(input_string == NULL) {
+            read_length = -1;
+        } else {
+            read_length = strlen(input_string);
+        }
+
         switch (read_length) {
             case -1:
                 /* If only eof was entered or something went wrong, quietly quit
                  * (this is bash behavior) */
+                exit(0);
+                break;
                 return 0;
-            case 1:
+            case 0:
                 /* Empty line, new prompt */
                 break;
             default:
                 /* Handle '&' first. Might not be space separated, so easier to do here */
-                if('&' == input_string[read_length-2]) {
+                if('&' == input_string[read_length-1]) {
                     /* '&' acknowledged, change to null */
-                    input_string[read_length-2] = '\0';
+                    input_string[read_length-1] = '\0';
                     is_background = TRUE;
                 } else {
                     is_background = FALSE;
@@ -112,28 +116,30 @@ int main() {
                 /* Get array of input tokens */
                 args = args_tokenized(input_string);
                 interpret(args, is_background); 
-                break;
         }
 
         /* 1: Check if any process sent stats over pipe after they terminated 
-         * 2: If it was backgrond, clean up process table */
+         * 2: If it was backgrond and SIGDET = 0, clean up process table */
         while(poll(&time_poll, 1, 0)) { 
-            /* This line has problems when compiled on u-shell.csc.kth.se.
-             * Gives segmentation error even when inside of loop is not run */
             if(-1 == read(proc_time_pipe[READ_SIDE], &proc_time, sizeof(proc_time))) {
                 perror("read");
                 exit(-1);
             }
             /* Print stats */
-            printf("Process %d terminated, %d milliseconds.\n",
-                    proc_time.pid,
-                    proc_time.delta_millis);
-
             if(proc_time.was_background) {
+                printf("Process %d terminated.\n", proc_time.pid);
+            } else {
+                printf("Process %d terminated, %d milliseconds.\n",
+                        proc_time.pid,
+                        proc_time.delta_millis);
+            }
+
+            if(proc_time.was_background && 0 == SIGDET) {
                 /* Acknowledge from process table */
-                wait(NULL);
+                /*wait(NULL);*/
             }
         }
+        if(NULL != input_string) free(input_string);
     }
     return 0;
 }
@@ -175,7 +181,6 @@ void interpret(char **args, int is_background) {
             if(0 == pid) {
 
                 /* in child, execute the command */
-                start(getpid());
                 execvp(args[0], args);
 
                 /* If we get here, execlp returned -1 */
@@ -185,7 +190,30 @@ void interpret(char **args, int is_background) {
             } else {
                 /* In parent */
                 if(!is_background) {
-                    waitpid(pid, NULL, 0);
+                    /* In parent of executing process */
+                    /* Start timer */
+                    gettimeofday(&start_time, NULL);
+                    if(-1 == waitpid(pid, NULL, 0)) {
+                        perror("waitpid");
+                        exit(-1);
+                    }
+                    /* Stop timer */
+                    gettimeofday(&stop_time, NULL);
+                    
+                    /* Prepare stats to send */
+                    proc_time.pid = pid;
+                    proc_time.delta_millis = (stop_time.tv_sec - start_time.tv_sec)*1000 +
+                                             (stop_time.tv_usec - start_time.tv_usec)/1000;
+                    proc_time.was_background = is_background;
+
+                    /* Send */
+                    if(-1 == write(proc_time_pipe[WRITE_SIDE], &proc_time, sizeof(proc_time))) {
+                        perror("write"); exit(-1);
+                    }
+                } else {
+                    /* Process was background and signal when terminated should be catched
+                     * by child_listener */
+                     printf("Process %d started in background\n", pid);
                 }
             }
 
@@ -236,8 +264,6 @@ void interpret(char **args, int is_background) {
                         perror("close"); exit(-1);
                     }
 
-                    /* The array of arguments was allocated and must be freed */
-                    free_args(args);
                     exit(0);
                 }
             } else {
@@ -252,34 +278,46 @@ void interpret(char **args, int is_background) {
             }
         }
     }
+    /* The array of arguments was allocated and must be freed */
+    free_args(args);
 }
 
 /* Signal handler for SIGCHLD. Checks if the signal was due to a terminated
  * process. If it was, acknowledge entry in process tabel via wait() */
 void child_listener(int sig) {
     pid_t pid;
-    int status, delta;
+    int status;
     proc_time_t proc_time;
-
+    
     /* See what process signaled */
     pid = wait(&status);
-    /* TODO Check why it signaled
-     * TODO Print stats */
-    if(WIFEXITED(status)) {
-        /* Prepare stats to send */
-        delta = stop(pid);
-        proc_time.pid = pid;
-        proc_time.delta_millis = delta;
-        /* The reason for FALSE is that it is no longer a zombie process */
-        proc_time.was_background = FALSE;
-
-        /* Report! */
-        if(0 == write(proc_time_pipe[WRITE_SIDE], &proc_time, sizeof(proc_time))) {
-            perror("write");
-            exit(-1);
-        }
+    if(pid < 1) {
+        /* Process already waited for */
+        return;
     } else {
-        /* Nothing to do, maybe next time! */
+        /* TODO Check why it signaled
+         * TODO Print stats */
+        if(!WIFSIGNALED(status)) { /* TODO Fix this */
+            /* Prepare stats to send */
+            proc_time.pid = pid;
+            proc_time.delta_millis = 0;
+            proc_time.was_background = TRUE;
+
+            /* Report! */
+            if(-1 == write(proc_time_pipe[WRITE_SIDE], &proc_time, sizeof(proc_time))) {
+                perror("write");
+                exit(-1);
+            }
+        } else {
+            /* Nothing to do, maybe next time!? */
+            printf("Signal %d terminated process %d\n", WTERMSIG(status), pid);
+        }
+    }
+
+    /* Reset signal handler */
+    if(SIG_ERR == signal(SIGCHLD, child_listener)) {
+        perror("signal");
+        exit(-1);
     }
 }
 
