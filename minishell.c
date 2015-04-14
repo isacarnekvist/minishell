@@ -10,6 +10,8 @@
 #include <poll.h>
 #include "helpers.h"
 #include "proc_clock.h"
+/* #include <readline/readline.h>
+ * #include <readline/history.h> */
 
 #define CMD_MAX_LEN 80
 #define TRUE 1
@@ -29,8 +31,6 @@
 void child_listener(int sig);
 /* Catches SIGINT */
 void sig_handler(int sig);
-
-/* TODO Bug: run 'cat', terminate with Ctrl-C. This will also terminate minishell. Sighandler? */
 
 /* This struct is used to send timing stats when process finished */
 typedef struct ptt {
@@ -54,6 +54,7 @@ int main() {
     int is_background;
     struct pollfd time_poll;
     proc_time_t proc_time;
+    char prompt[] = "> ";
 
     linecap = CMD_MAX_LEN;
 
@@ -87,6 +88,7 @@ int main() {
         /* Read input */
         printf("> ");
         input_string = NULL;
+        /* input_string = readline(prompt); */
         read_length = getline(&input_string, &linecap, stdin);
         input_string[read_length - 1] = '\0';
         switch (read_length) {
