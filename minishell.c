@@ -47,15 +47,12 @@ void interpret(char **, int);
 int main() {
     char *input_string;
     char **args;
-    size_t linecap;
     int read_length;
     /* int return_val; */
     int is_background;
     struct pollfd time_poll;
     proc_time_t proc_time;
     char prompt[] = "> ";
-
-    linecap = CMD_MAX_LEN;
 
     /* Set up timing stats pipe */
     if(-1 == pipe(proc_time_pipe)) {
