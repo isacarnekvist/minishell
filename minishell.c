@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <signal.h>
 #include <poll.h>
 #include "helpers.h"
 #include <readline/readline.h>
@@ -148,8 +149,19 @@ void interpret(char **args, int is_background) {
     int pid; 
     struct timeval start_time;
     struct timeval stop_time;
+    /* Used for blocking SIGCHLD signals */
+    sigset_t sigset;
     proc_time_t proc_time;
     char *home;
+
+    if(sigemptyset(&sigset) == -1) {
+        perror("sigemptyset");
+        exit(-1);
+    }
+    if(sigaddset(&sigset, SIGCHLD) == -1) {
+        perror("sigaddset");
+        exit(-1);
+    }
 
     /* Check for built in commands 
      * - minor bug: 'cd .. foo' is interpreted as 'cd ..' */
@@ -173,9 +185,17 @@ void interpret(char **args, int is_background) {
 
     } else {
         if(SIGDET) {
-            /* Do not wait for background processes, let child_listener do this */
+
+            /* Do not wait for background processes, let child_listener handle them */
+
+            if(!is_background) {
+                /* Block any signals from background processes during foreground process */
+                sigprocmask(SIG_BLOCK, &sigset, NULL);
+            }
+
             pid = vfork();
             if(0 == pid) {
+
 
                 /* in child, execute the command */
                 execvp(args[0], args);
@@ -194,6 +214,10 @@ void interpret(char **args, int is_background) {
                         perror("waitpid");
                         exit(-1);
                     }
+
+                    /* Reset signal handling */
+                    sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+
                     /* Stop timer */
                     gettimeofday(&stop_time, NULL);
                     
@@ -286,14 +310,8 @@ void child_listener(int sig) {
     int status;
     proc_time_t proc_time;
     
-    /* See what process signaled */
-    pid = wait(&status);
-    if(pid < 1) {
-        /* Process already waited for */
-        return;
-    } else {
-        /* TODO Check why it signaled
-         * TODO Print stats */
+    /* TODO report once per process in process table */
+    while((pid = waitpid(-1, &status, WNOHANG)) > 1) {
         if(!WIFSIGNALED(status)) { /* TODO Fix this */
             /* Prepare stats to send */
             proc_time.pid = pid;
@@ -310,8 +328,9 @@ void child_listener(int sig) {
             printf("Signal %d terminated process %d\n", WTERMSIG(status), pid);
         }
     }
+    return;
 
-    /* Reset signal handler */
+    /* Reset signal handler, might not be needed? */
     if(SIG_ERR == signal(SIGCHLD, child_listener)) {
         perror("signal");
         exit(-1);
