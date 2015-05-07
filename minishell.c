@@ -107,7 +107,8 @@ int main() {
                 /* Empty line, new prompt */
                 break;
             default:
-                /* Handle '&' first. Might not be space separated, so easier to do here */
+                /* Handle '&' first. Might not be space separated, so easier to
+                 * do here */
                 if('&' == input_string[read_length-1]) {
                     /* '&' acknowledged, change to null */
                     input_string[read_length-1] = '\0';
@@ -181,10 +182,12 @@ void interpret(char **args, int is_background) {
         /* No built in command was entered, so now we try to execute the command */
         if(SIGDET) {
 
-            /* Do not wait for background processes, let child_listener handle them */
+            /* Do not wait for background processes, let child_listener handle
+             * them */
 
             if(!is_background) {
-                /* Block any signals from background processes during foreground process */
+                /* Block any signals from background processes during
+                 * foreground process */
                 sighold(SIGCHLD);
             }
 
@@ -233,14 +236,7 @@ void interpret(char **args, int is_background) {
             }
 
         } else {
-            /* ## Try to execute given command with polling ##
-             * Since SIGDET = 0, this 'version' waits for commands to finish executing
-             * Parent: fork, wait only if foreground
-             *   |    
-             * Child: start time, fork, waitpid, stop time, send proc_time through pipe to parent
-             *   |        
-             * Baby: execute      
-             */
+            /* Try to execute given command with polling */
             pid = fork();
             if(0 == pid) {
                 /* Child of shell */
