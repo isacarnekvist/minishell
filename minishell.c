@@ -1,12 +1,13 @@
 /* This is a simple shell with built-in commands cd and exit. 'digenv' is
  * assumed to be in the PATH variable since this is an external program. */
+#define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <sys/time.h>
-#include <sys/types.h>
 #include <signal.h>
 #include <poll.h>
 #include "helpers.h"
@@ -19,7 +20,7 @@
 #define READ_SIDE 0
 #define WRITE_SIDE 1
 
-#define SIGDET 1
+#define SIGDET 0
 /* If SIGDET = 1, then program will listen for signals from child processes
  * to determine that they finished running.
  * If SIGDET = 0, program will use waitpid */
@@ -63,13 +64,13 @@ int main() {
 
     /* Set up signal handling */
     if(SIGDET) {
-        if(SIG_ERR == signal(SIGCHLD, child_listener)) {
-            perror("signal");
+        if(-1 == (int)sigset(SIGCHLD, child_listener)) {
+            perror("sigset");
             exit(-1);
         }
     }
-    if(SIG_ERR == signal(SIGINT, sig_handler)) {
-        perror("signal");
+    if(-1 == (int)sigset(SIGINT, sig_handler)) {
+        perror("sigset");
     }
 
     /* Set up polling of proc_time_pipe */
@@ -78,7 +79,11 @@ int main() {
     time_poll.fd = proc_time_pipe[READ_SIDE];
     time_poll.events = POLLIN;
 
-    printf("This is miniShell 2.0\n");
+    printf("           _       _ __ _          _ _ \n"); 
+    printf(" _ __ ___ (_)_ __ (_) _\\ |__   ___| | |\n"); 
+    printf("| '_ ` _ \\| | '_ \\| \\ \\| '_ \\ / _ \\ | |\n"); 
+    printf("| | | | | | | | | | |\\ \\ | | |  __/ | |\n"); 
+    printf("|_| |_| |_|_|_| |_|_\\__/_| |_|\\___|_|_| 2.0\n"); 
     printf("Author: Isac Arnekvist\n");
 
     while(1) {
@@ -133,8 +138,8 @@ int main() {
             }
 
             if(proc_time.was_background && 0 == SIGDET) {
-                /* Acknowledge from process table */
-                /*wait(NULL);*/
+                /* Acknowledge the child that did timing from process table */
+                wait(NULL);
             }
         }
         if(NULL != input_string) free(input_string);
@@ -149,19 +154,8 @@ void interpret(char **args, int is_background) {
     int pid; 
     struct timeval start_time;
     struct timeval stop_time;
-    /* Used for blocking SIGCHLD signals */
-    sigset_t sigset;
     proc_time_t proc_time;
     char *home;
-
-    if(sigemptyset(&sigset) == -1) {
-        perror("sigemptyset");
-        exit(-1);
-    }
-    if(sigaddset(&sigset, SIGCHLD) == -1) {
-        perror("sigaddset");
-        exit(-1);
-    }
 
     /* Check for built in commands 
      * - minor bug: 'cd .. foo' is interpreted as 'cd ..' */
@@ -184,18 +178,18 @@ void interpret(char **args, int is_background) {
         exit(0);
 
     } else {
+        /* No built in command was entered, so now we try to execute the command */
         if(SIGDET) {
 
             /* Do not wait for background processes, let child_listener handle them */
 
             if(!is_background) {
                 /* Block any signals from background processes during foreground process */
-                sigprocmask(SIG_BLOCK, &sigset, NULL);
+                sighold(SIGCHLD);
             }
 
             pid = vfork();
             if(0 == pid) {
-
 
                 /* in child, execute the command */
                 execvp(args[0], args);
@@ -216,7 +210,7 @@ void interpret(char **args, int is_background) {
                     }
 
                     /* Reset signal handling */
-                    sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+                    sigrelse(SIGCHLD);
 
                     /* Stop timer */
                     gettimeofday(&stop_time, NULL);
@@ -239,7 +233,7 @@ void interpret(char **args, int is_background) {
             }
 
         } else {
-            /* ## Try to execute given command ##
+            /* ## Try to execute given command with polling ##
              * Since SIGDET = 0, this 'version' waits for commands to finish executing
              * Parent: fork, wait only if foreground
              *   |    
@@ -249,10 +243,11 @@ void interpret(char **args, int is_background) {
              */
             pid = fork();
             if(0 == pid) {
+                /* Child of shell */
                 pid = vfork();
                 if(0 == pid) {
 
-                    /* in child, execute the command */
+                    /* in child of shells child, execute the command */
                     execvp(args[0], args);
 
                     /* If we get here, execlp returned -1 */
@@ -260,10 +255,9 @@ void interpret(char **args, int is_background) {
                     exit(-1);
 
                 } else {
-                    /* In parent of executing process */
+                    /* In parent of executing process, child of shell */
                     /* Start timer */
                     gettimeofday(&start_time, NULL);
-                    /* This wait should not be done if SIGDET = 1 */
                     waitpid(pid, NULL, 0);
                     /* Stop timer */
                     gettimeofday(&stop_time, NULL);
@@ -309,7 +303,7 @@ void child_listener(int sig) {
     pid_t pid;
     int status;
     proc_time_t proc_time;
-    
+
     /* TODO report once per process in process table */
     while((pid = waitpid(-1, &status, WNOHANG)) > 1) {
         if(!WIFSIGNALED(status)) { /* TODO Fix this */

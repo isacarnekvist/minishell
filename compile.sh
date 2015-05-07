@@ -1,2 +1,2 @@
 rm -f minishell
-gcc -pedantic -Wall -ansi -O4 -o minishell minishell.c helpers.c -lreadline
+gcc -lreadline -ltermcap -pedantic -Wall -ansi -O4 -o minishell minishell.c helpers.c
