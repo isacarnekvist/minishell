@@ -20,7 +20,7 @@
 #define READ_SIDE 0
 #define WRITE_SIDE 1
 
-#define SIGDET 0
+#define SIGDET 1
 /* If SIGDET = 1, then program will listen for signals from child processes
  * to determine that they finished running.
  * If SIGDET = 0, program will use waitpid */
@@ -64,12 +64,12 @@ int main() {
 
     /* Set up signal handling */
     if(SIGDET) {
-        if(-1 == (int)sigset(SIGCHLD, child_listener)) {
+        if(-1 == (long)sigset(SIGCHLD, child_listener)) {
             perror("sigset");
             exit(-1);
         }
     }
-    if(-1 == (int)sigset(SIGINT, sig_handler)) {
+    if(-1 == (long)sigset(SIGINT, sig_handler)) {
         perror("sigset");
     }
 
