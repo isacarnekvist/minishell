@@ -1,0 +1,134 @@
+This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2014) (preloaded format=pdflatex 2015.3.17)  8 MAY 2015 08:57
+entering extended mode
+ restricted \write18 enabled.
+ file:line:error style messages enabled.
+ %&-line parsing enabled.
+**/Volumes/user/isacarnekvist/workspaces/operativsystem/minishell/rapport/rappo
+rt.tex
+
+(/Volumes/user/isacarnekvist/workspaces/operativsystem/minishell/rapport/rappor
+t.tex
+LaTeX2e <2014/05/01>
+Babel <3.9k> and hyphenation patterns for 21 languages loaded.
+(/usr/local/texlive/2014basic/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2007/10/19 v1.4h Standard LaTeX document class
+(/usr/local/texlive/2014basic/texmf-dist/tex/latex/base/size10.clo
+File: size10.clo 2007/10/19 v1.4h Standard LaTeX file (size option)
+)
+\c@part=\count79
+\c@section=\count80
+\c@subsection=\count81
+\c@subsubsection=\count82
+\c@paragraph=\count83
+\c@subparagraph=\count84
+\c@figure=\count85
+\c@table=\count86
+\abovecaptionskip=\skip41
+\belowcaptionskip=\skip42
+\bibindent=\dimen102
+)
+(/usr/local/texlive/2014basic/texmf-dist/tex/latex/tools/verbatim.sty
+Package: verbatim 2003/08/22 v1.5q LaTeX2e package for verbatim enhancements
+\every@verbatim=\toks14
+\verbatim@line=\toks15
+\verbatim@in@stream=\read1
+)
+(/usr/local/texlive/2014basic/texmf-dist/tex/latex/preprint/fullpage.sty
+Package: fullpage 1999/02/23 1.1 (PWD)
+\FP@margin=\skip43
+)
+(./rapport.aux)
+\openout1 = `rapport.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 7.
+LaTeX Font Info:    ... okay on input line 7.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 7.
+LaTeX Font Info:    ... okay on input line 7.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 7.
+LaTeX Font Info:    ... okay on input line 7.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 7.
+LaTeX Font Info:    ... okay on input line 7.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 7.
+LaTeX Font Info:    ... okay on input line 7.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 7.
+LaTeX Font Info:    ... okay on input line 7.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <12> on input line 9.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <8> on input line 9.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <6> on input line 9.
+ [1
+
+{/usr/local/texlive/2014basic/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] [1
+] [2] [3]
+File: ../minishell.c  (verbatim)
+ [4] [5] [6] [7]
+Overfull \hbox (2.74086pt too wide) in paragraph at lines 192--192
+[]                    \OT1/cmtt/m/n/10 proc_time.delta_millis = (stop_time.tv_s
+ec - start_time.tv_sec)*1000 +[] 
+ []
+
+
+Overfull \hbox (7.99081pt too wide) in paragraph at lines 192--192
+[]                                             \OT1/cmtt/m/n/10 (stop_time.tv_u
+sec - start_time.tv_usec)/1000;[] 
+ []
+
+
+Overfull \hbox (34.24059pt too wide) in paragraph at lines 192--192
+[]                    \OT1/cmtt/m/n/10 if(-1 == write(proc_time_pipe[WRITE_SIDE
+], &proc_time, sizeof(proc_time))) {[] 
+ []
+
+
+Overfull \hbox (2.74086pt too wide) in paragraph at lines 192--192
+[]                    \OT1/cmtt/m/n/10 /* Process was background and signal whe
+n terminated should be catched[] 
+ []
+
+[8]
+Overfull \hbox (2.74086pt too wide) in paragraph at lines 192--192
+[]                    \OT1/cmtt/m/n/10 proc_time.delta_millis = (stop_time.tv_s
+ec - start_time.tv_sec)*1000 +[] 
+ []
+
+
+Overfull \hbox (7.99081pt too wide) in paragraph at lines 192--192
+[]                                             \OT1/cmtt/m/n/10 (stop_time.tv_u
+sec - start_time.tv_usec)/1000;[] 
+ []
+
+
+Overfull \hbox (34.24059pt too wide) in paragraph at lines 192--192
+[]                    \OT1/cmtt/m/n/10 if(-1 == write(proc_time_pipe[WRITE_SIDE
+], &proc_time, sizeof(proc_time))) {[] 
+ []
+
+[9]
+File: ../helpers.c  (verbatim)
+ [10]
+File: ../digenv/digenv.c  (verbatim)
+ [11] [12] [13] [14] [15] (./rapport.aux) ) 
+Here is how much of TeX's memory you used:
+ 293 strings out of 494522
+ 3786 string characters out of 6167205
+ 59767 words of memory out of 5000000
+ 3612 multiletter control sequences out of 15000+600000
+ 8101 words of font info for 29 fonts, out of 8000000 for 9000
+ 319 hyphenation exceptions out of 8191
+ 23i,6n,17p,217b,249s stack positions out of 5000i,500n,10000p,200000b,80000s
+</usr/local/texlive/2014basic/texmf-
+dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/local/texlive/2014basic/te
+xmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2014basic
+/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/local/texlive/2014ba
+sic/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/local/texlive/201
+4basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/local/texlive
+/2014basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb>
+Output written on rapport.pdf (16 pages, 115174 bytes).
+PDF statistics:
+ 80 PDF objects out of 1000 (max. 8388607)
+ 55 compressed objects within 1 object stream
+ 0 named destinations out of 1000 (max. 500000)
+ 1 words of extra memory for PDF output out of 10000 (max. 10000000)
+
