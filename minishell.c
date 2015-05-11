@@ -20,7 +20,7 @@
 #define READ_SIDE 0
 #define WRITE_SIDE 1
 
-#define SIGDET 1
+#define SIGDET 0
 /* If SIGDET = 1, then program will listen for signals from child processes
  * to determine that they finished running.
  * If SIGDET = 0, program will use waitpid */
@@ -193,8 +193,14 @@ void interpret(char **args, int is_background) {
             pid = vfork();
             if(0 == pid) {
 
-                /* in child, execute the command */
-                sigset(SIGINT, SIG_DFL); 
+                /* in child, allow ctrl-c, if foreground, and execute the
+                 * command */
+                if(SIGDET && !is_background) {
+                    if(-1 == (long)sigset(SIGINT, SIG_DFL)) {
+                        perror("sigset");
+                        exit(-1);
+                    }
+                }
                 execvp(args[0], args);
 
                 /* If we get here, execlp returned -1 */
@@ -217,17 +223,12 @@ void interpret(char **args, int is_background) {
 
                     /* Stop timer */
                     gettimeofday(&stop_time, NULL);
-                    
-                    /* Prepare stats to send */
-                    proc_time.pid = pid;
-                    proc_time.delta_millis = (stop_time.tv_sec - start_time.tv_sec)*1000 +
-                                             (stop_time.tv_usec - start_time.tv_usec)/1000;
-                    proc_time.was_background = is_background;
 
-                    /* Send */
-                    if(-1 == write(proc_time_pipe[WRITE_SIDE], &proc_time, sizeof(proc_time))) {
-                        perror("write"); exit(-1);
-                    }
+                    printf("Process %d terminated, %ld milliseconds.\n", 
+                            pid,
+                            (stop_time.tv_sec - start_time.tv_sec)*1000 +
+                            (stop_time.tv_usec - start_time.tv_usec)/1000
+                          );
                 } else {
                     /* Process was background and signal when terminated should be catched
                      * by child_listener */
@@ -242,8 +243,13 @@ void interpret(char **args, int is_background) {
 
                 /* in child of shell, execute the command */
                 if(!is_background) {
-                    /* Only kill foreground processes */
-                    sigset(SIGINT, SIG_DFL); 
+                    /* Only allow ctrl-c on foreground processes */
+                    if(SIGDET) {
+                        if(-1 == (long)sigset(SIGINT, SIG_DFL)) {
+                            perror("sigset");
+                            exit(-1);
+                        }
+                    }
                 }
                 execvp(args[0], args);
 
