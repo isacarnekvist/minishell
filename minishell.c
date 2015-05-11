@@ -20,7 +20,7 @@
 #define READ_SIDE 0
 #define WRITE_SIDE 1
 
-#define SIGDET 0
+#define SIGDET 1
 /* If SIGDET = 1, then program will listen for signals from child processes
  * to determine that they finished running.
  * If SIGDET = 0, program will use waitpid */
@@ -190,16 +190,21 @@ void interpret(char **args, int is_background) {
                 sighold(SIGCHLD);
             }
 
-            pid = vfork();
+            pid = fork();
             if(0 == pid) {
 
-                /* in child, allow ctrl-c, if foreground, and execute the
-                 * command */
-                if(SIGDET && !is_background) {
-                    if(-1 == (long)sigset(SIGINT, SIG_DFL)) {
-                        perror("sigset");
+                /* Set background processes to a new process group id to make
+                 * them not react to Ctrl-C but still to SIGINT via pkill */
+                if(is_background) {
+                    if(-1 == setsid()) {
+                        perror("setsid");
                         exit(-1);
-                    }
+                    } 
+                }
+                /* Reset SIGINT handling */
+                if(-1 == (long)sigset(SIGINT, SIG_DFL)) {
+                    perror("sigset");
+                    exit(-1);
                 }
                 execvp(args[0], args);
 
@@ -242,14 +247,19 @@ void interpret(char **args, int is_background) {
             if(0 == pid) {
 
                 /* in child of shell, execute the command */
-                if(!is_background) {
-                    /* Only allow ctrl-c on foreground processes */
-                    if(SIGDET) {
-                        if(-1 == (long)sigset(SIGINT, SIG_DFL)) {
-                            perror("sigset");
-                            exit(-1);
-                        }
-                    }
+
+                /* Set background processes to a new process group id to make
+                 * them not react to Ctrl-C but still to SIGINT via pkill */
+                if(is_background) {
+                    if(-1 == setsid()) {
+                        perror("setsid");
+                        exit(-1);
+                    } 
+                }
+                /* Reset SIGINT handling */
+                if(-1 == (long)sigset(SIGINT, SIG_DFL)) {
+                    perror("sigset");
+                    exit(-1);
                 }
                 execvp(args[0], args);
 
