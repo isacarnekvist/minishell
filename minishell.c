@@ -20,7 +20,7 @@
 #define READ_SIDE 0
 #define WRITE_SIDE 1
 
-#define SIGDET 1
+#define SIGDET 0
 /* If SIGDET = 1, then program will listen for signals from child processes
  * to determine that they finished running.
  * If SIGDET = 0, program will use waitpid */
@@ -69,8 +69,9 @@ int main() {
             exit(-1);
         }
     }
-    if(-1 == (long)sigset(SIGINT, sig_handler)) {
-        perror("sigset");
+
+    if(-1 == sigignore(SIGINT)) {
+        perror("sigignore");
     }
 
     /* Set up polling of proc_time_pipe */
@@ -244,6 +245,10 @@ void interpret(char **args, int is_background) {
                 if(0 == pid) {
 
                     /* in child of shells child, execute the command */
+                    if(!is_background) {
+                        /* Only kill foreground processes */
+                        sigset(SIGINT, SIG_DFL); 
+                    }
                     execvp(args[0], args);
 
                     /* If we get here, execlp returned -1 */
