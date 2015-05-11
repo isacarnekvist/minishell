@@ -20,7 +20,7 @@
 #define READ_SIDE 0
 #define WRITE_SIDE 1
 
-#define SIGDET 0
+#define SIGDET 1
 /* If SIGDET = 1, then program will listen for signals from child processes
  * to determine that they finished running.
  * If SIGDET = 0, program will use waitpid */
@@ -51,7 +51,7 @@ int main() {
     char **args;
     int read_length;
     /* int return_val; */
-    int is_background;
+    int is_background, status, pid;
     struct pollfd time_poll;
     proc_time_t proc_time;
     char prompt[] = "> ";
@@ -123,28 +123,26 @@ int main() {
                 interpret(args, is_background); 
         }
 
-        /* 1: Check if any process sent stats over pipe after they terminated 
-         * 2: If it was backgrond and SIGDET = 0, clean up process table */
+        /* Check if any process sent stats over pipe after they terminated */
         while(poll(&time_poll, 1, 0)) { 
             if(-1 == read(proc_time_pipe[READ_SIDE], &proc_time, sizeof(proc_time))) {
                 perror("read");
                 exit(-1);
             }
             /* Print stats */
-            if(proc_time.was_background) {
-                printf("Process %d terminated.\n", proc_time.pid);
-            } else {
-                printf("Process %d terminated, %d milliseconds.\n",
-                        proc_time.pid,
-                        proc_time.delta_millis);
-            }
-
-            if(proc_time.was_background && 0 == SIGDET) {
-                /* Acknowledge the child that did timing from process table */
-                wait(NULL);
-            }
+            printf("Process %d terminated.\n", proc_time.pid);
         }
         if(NULL != input_string) free(input_string);
+
+        /* If polling (SIGDET = 0), check if any processes finished running in
+         * the background */
+        if (1 != SIGDET) {
+            while((pid = waitpid(-1, &status, WNOHANG)) > 1) {
+                if(!WIFSIGNALED(status)) {
+                    printf("Process %d terminated.\n", pid);
+                }
+            }
+        }
     }
     return 0;
 }
@@ -196,6 +194,7 @@ void interpret(char **args, int is_background) {
             if(0 == pid) {
 
                 /* in child, execute the command */
+                sigset(SIGINT, SIG_DFL); 
                 execvp(args[0], args);
 
                 /* If we get here, execlp returned -1 */
@@ -240,24 +239,22 @@ void interpret(char **args, int is_background) {
             /* Try to execute given command with polling */
             pid = fork();
             if(0 == pid) {
-                /* Child of shell */
-                pid = vfork();
-                if(0 == pid) {
 
-                    /* in child of shells child, execute the command */
-                    if(!is_background) {
-                        /* Only kill foreground processes */
-                        sigset(SIGINT, SIG_DFL); 
-                    }
-                    execvp(args[0], args);
+                /* in child of shell, execute the command */
+                if(!is_background) {
+                    /* Only kill foreground processes */
+                    sigset(SIGINT, SIG_DFL); 
+                }
+                execvp(args[0], args);
 
-                    /* If we get here, execlp returned -1 */
-                    perror("exec");
-                    exit(-1);
+                /* If we get here, execlp returned -1 */
+                perror("exec");
+                exit(-1);
 
-                } else {
-                    /* In parent of executing process, child of shell */
-                    /* Start timer */
+            } else {
+                /* In parent */
+                /* Start timer */
+                if(!is_background) {
                     gettimeofday(&start_time, NULL);
                     waitpid(pid, NULL, 0);
                     /* Stop timer */
@@ -265,31 +262,15 @@ void interpret(char **args, int is_background) {
                     
                     /* Prepare stats to send */
                     proc_time.pid = pid;
-                    proc_time.delta_millis = (stop_time.tv_sec - start_time.tv_sec)*1000 +
-                                             (stop_time.tv_usec - start_time.tv_usec)/1000;
-                    proc_time.was_background = is_background;
+                    printf("Process %d terminated, %ld milliseconds.\n", 
+                            pid,
+                            (stop_time.tv_sec - start_time.tv_sec)*1000 +
+                            (stop_time.tv_usec - start_time.tv_usec)/1000
+                          );
 
-                    /* Send */
-                    if(-1 == close(proc_time_pipe[READ_SIDE])) {
-                        perror("close"); exit(-1);
-                    }
-                    if(-1 == write(proc_time_pipe[WRITE_SIDE], &proc_time, sizeof(proc_time))) {
-                        perror("write"); exit(-1);
-                    }
-                    if(-1 == close(proc_time_pipe[WRITE_SIDE])) {
-                        perror("close"); exit(-1);
-                    }
-
-                    exit(0);
-                }
-            } else {
-                /* If background process, process table is cleared in main()
-                 * when that process finishes */
-                if(!is_background) {
-                    /* Wait for process if foreground */
-                    waitpid(pid, NULL, 0);
                 } else {
-                    printf("Process %d started in background\n", pid);
+                    /* Continue to prompt and poll from there for finished
+                     * processes */
                 }
             }
         }
@@ -307,7 +288,7 @@ void child_listener(int sig) {
 
     /* TODO report once per process in process table */
     while((pid = waitpid(-1, &status, WNOHANG)) > 1) {
-        if(!WIFSIGNALED(status)) { /* TODO Fix this */
+        if(!WIFSIGNALED(status)) {
             /* Prepare stats to send */
             proc_time.pid = pid;
             proc_time.delta_millis = 0;
@@ -329,13 +310,5 @@ void child_listener(int sig) {
     if(SIG_ERR == signal(SIGCHLD, child_listener)) {
         perror("signal");
         exit(-1);
-    }
-}
-
-/* Makes sure Ctrl-C in child process does not kill miniShell
- * at the moment also ignores if it happens in 'prompt' mode */
-void sig_handler(int sig) {
-    if(SIGINT == sig) {
-        /* Do nothing, possible to know if sent during child process? */
     }
 }
