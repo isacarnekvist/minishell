@@ -1,0 +1,17 @@
+\BOOKMARK [1][-]{section.1}{Introduction}{}% 1
+\BOOKMARK [1][-]{section.2}{Task}{}% 2
+\BOOKMARK [1][-]{section.3}{Method}{}% 3
+\BOOKMARK [2][-]{subsection.3.1}{Input}{section.3}% 4
+\BOOKMARK [2][-]{subsection.3.2}{Polling}{section.3}% 5
+\BOOKMARK [2][-]{subsection.3.3}{Signal detection}{section.3}% 6
+\BOOKMARK [2][-]{subsection.3.4}{cd}{section.3}% 7
+\BOOKMARK [2][-]{subsection.3.5}{Ctrl-C}{section.3}% 8
+\BOOKMARK [2][-]{subsection.3.6}{digenv}{section.3}% 9
+\BOOKMARK [1][-]{section.4}{Verification}{}% 10
+\BOOKMARK [2][-]{subsection.4.1}{Simple usage}{section.4}% 11
+\BOOKMARK [2][-]{subsection.4.2}{Concurrent processes}{section.4}% 12
+\BOOKMARK [2][-]{subsection.4.3}{digenv}{section.4}% 13
+\BOOKMARK [2][-]{subsection.4.4}{Possible tests to do}{section.4}% 14
+\BOOKMARK [1][-]{section.5}{Installation and manual}{}% 15
+\BOOKMARK [1][-]{section.6}{Other}{}% 16
+\BOOKMARK [1][-]{section.7}{Appendix}{}% 17

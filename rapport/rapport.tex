@@ -2,6 +2,11 @@
 
 \usepackage{verbatim}
 \usepackage{fullpage}
+\usepackage{hyperref}
+\hypersetup{
+    urlcolor=cyan,
+    colorlinks=true,
+}
 \author{Isac Arnekvist 860202-2017 isacar@kth.se}
 \title{miniShell and printenv}
 \begin{document}
@@ -18,14 +23,16 @@
 \section*{Summary}
     This describes the overall method of implementing a simple shell and a tool
     to list your environment variables. It took about 30-40 hours to complete
-    and was made as two separate projects.  Hard to get everything to work
-    cross platform with backwards compatibility.
+    and was made as two separate projects. It was a challenge to get everything
+    to work cross platform with backwards compatibility. If done again: factor
+    out prompt code from rest of code and try to do unit testing. Also, the use
+    of pipes in the shell might be unnecessary.
 
 \newpage
 \pagenumbering{arabic}
 \section{Introduction}
     I started this task right after the course started by reading the instructions
-    on the \emph{ID2206} course webpage.
+    on the \emph{ID2206} course webpage. I have not had any lab partner.
     
 \section{Task}
     The task is to make a simple shell and a tool to list your environment
@@ -37,7 +44,9 @@
     This led to \emph{miniShell} and \emph{digenv} being made as two separate
     executables. Of course, if \emph{digenv} is in your PATH, you can start it
     from anywhere using \emph{miniShell}. The same holds for changing to the
-    \emph{digenv} folder and executing the local binary.
+    \emph{digenv} folder and executing the local binary. For exact requirements
+    see
+    \href{https://www.kth.se/social/course/ID2200/page/laborations-pm/}{here}.
 
 \section{Method}
     \subsection{Input}
@@ -48,10 +57,11 @@
         for \texttt{\&}, remove it and then tokenize the rest of the input.
         The reason not tokenizing before removing it is that in bash, it
         works both when separated with a whitespace character and when not,
-        and the tokenizer I wrote splits on whitespaces. So when the input
-        arguments are tokenized, an interpret method is invoked to check
-        for special cases like built-in commands like \emph{exit}. If not a
-        special case, then forks are made and I try to execute the commands
+        and the tokenizer I use, for simplicity, splits on whitespaces. So
+        when the input arguments are tokenized, an interpret method is
+        invoked to check for special cases like built-in commands like
+        \emph{exit}. If not a special case, then forks are made and I try
+        to execute the commands
         given. 
     \subsection{Polling}
         This was implemented in a little peculiar fashion, the reason is
@@ -129,7 +139,9 @@
         
 \section{Verification}
     Only manual testing was done to make sure the \emph{miniShell} lives up to
-    the requirements. These following main themes were tested:
+    the requirements. Separate functions were tested after the introduction of each
+    and one of them by doing manual testing, print statements and asserts.
+    Regarding testing of the final shell, these following main themes were tested:
     \subsection{Simple usage}
         Basic existent and non-existent command was entered to make sure the
         behaviour is as expected. Some of the commands entered were:
@@ -170,6 +182,14 @@
         lines were filtered out. If a regex was given that did not match, it
         should of course not show any lines at all.
 
+    \subsection{Possible tests to do}
+        A lot of more automated tests could be done if the shell was to be used
+        over a longer time and maintained. Although, I think som major effort
+        is going to be needed to automatically check the forks and also check
+        process tables for expected behaviour. Especially when the ''view'' and
+        ''controller'' is in the same file.
+        
+
 \section{Installation and manual}
     Both the \emph{miniShell} and the \emph{digenv} comes with a compile script
     which compiles with flags \emph{gcc -pedantic -Wall -ansi -O4 ...} and also a
@@ -180,16 +200,26 @@
 
 \section{Other}
     I needed maybe about 30-40 hours to complete the assignment. I think it was
-    interesting, especially how hard it was to write code with this restrictions
+    interesting, especially how hard it was to write code with these restrictions
     that does not give warnings and work on both macintosh and a linux server.
     If I started the project again I would have done some things different. That
     includes not having such a complicated fork process, since timing is not needed
     on background processes. I also would have split the program into a \emph{(M)VC}
     pattern to allow unit testing of all ''non-prompt'' functions.
 
+    Now that I know that timing of background processes is not needed, I think
+    that the use of pipes might no longer be needed. Prints could be done from
+    the signal handler instead of sending data to the main function. On the
+    other hand, I am not quite sure that prints from within the signal handler
+    is guaranteed to work all the time. I have trouble finding this in the
+    manuals, but I feel I have seen it somewhere. It might be something with
+    that signal handlers are asynchronous and two calls might be called at
+    approximately the same time. So what happens if another handler is called
+    in the middle of a print within an other handler?
+
 \newpage
 \section{Appendix}
     \verbatiminput{../minishell.c}
-    \verbatiminput{../helpers.c}
     \verbatiminput{../digenv/digenv.c}
+    \verbatiminput{../helpers.c}
 \end{document}
