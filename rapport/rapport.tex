@@ -24,9 +24,10 @@
     This describes the overall method of implementing a simple shell and a tool
     to list your environment variables. It took about 30-40 hours to complete
     and was made as two separate projects. It was a challenge to get everything
-    to work cross platform with backwards compatibility. If done again: factor
-    out prompt code from rest of code and try to do unit testing. Also, the use
-    of pipes in the shell might be unnecessary.
+    to work cross platform with backwards compatibility. I started out doing more
+    complicated solutions than needed, partly because I thought that background
+    processes also should be timed. If done again: factor
+    out prompt code from rest of code and try to do unit testing.
 
 \newpage
 \pagenumbering{arabic}
@@ -64,29 +65,37 @@
         to execute the commands
         given. 
     \subsection{Polling}
-        This was implemented in a little peculiar fashion, the reason is
-        that I started with timing the background processes as well.
-        The shell always forks of a child A, which in turn forks off an
-        other child B. Child B then executes the arguments given. The
-        reason for this is that child A can time B and wait for it no matter
-        if the shell returns immediately to the prompt. If it is supposed to
-        be run as a background process, the shell doesn't wait for process A
-        to finish and returns to the prompt while A still can wait in the
-        background with a timer running. When B finishes, A stopped the timer
-        and sent the data over a pipe using that as a cue of terminated
-        processes no matter if it was a background or foreground process.
-        I had problems when doing the same with signal detection, so to
-        have a congruent system, timing is no longer done of background
-        processes. When the interpret function returns, the main loop has a
-        function to poll the pipe for finished processes. The data sent over
-        the pipe contains the process id and the time it was executing.
-        Since A was never waited for, an additional wait is issued to clear
-        it off the process table. This has a (not very pretty) downside. That
-        is that when issuing the \emph{ps} command, both the shell and the A
-        process shows up as ./minishell in the table. Sometimes the second one
-        also gets the \texttt{<defunct>} tag because it had not cleared it yet
-        before printing. This is \emph{not} the same as leaving a zombie
-        process though, the process always get cleaned up right away.
+        This was at first implemented in a little peculiar fashion, the reason
+        is that I started with timing the background processes as well.  The
+        shell always forks of a child A, which in turn forks off an other child
+        B. Child B then executes the arguments given. The reason for this is
+        that child A can time B and wait for it no matter if the shell returns
+        immediately to the prompt. If it is supposed to be run as a background
+        process, the shell doesn't wait for process A to finish and returns to
+        the prompt while A still can wait in the background with a timer
+        running. When B finishes, A stopped the timer and sent the data over a
+        pipe using that as a cue of terminated processes no matter if it was a
+        background or foreground process.  I had problems when doing the same
+        with signal detection, so to have a congruent system, timing is no
+        longer done of background processes. When the interpret function
+        returns, the main loop has a function to poll the pipe for finished
+        processes. The data sent over the pipe contains the process id and the
+        time it was executing.  Since A was never waited for, an additional
+        wait is issued to clear it off the process table. This has a (not very
+        pretty) downside. That is that when issuing the \emph{ps} command, both
+        the shell and the A process shows up as \texttt{./minishell} in the
+        table.  Sometimes the second one also gets the \texttt{<defunct>} tag
+        because it had not cleared it yet before printing. This is \emph{not}
+        the same as leaving a zombie process though, the process always get
+        cleaned up right away.
+
+        EDIT: I changed it so that a fork is made, and in that child, the
+        command is executed. In the parent I print the timing when waitpid
+        returns if it was a foreground process or go directly to prompt and
+        poll for terminated processes instead if background. That is, I never
+        use a pipe if SIGDET = 0, and \texttt{./minishell} is not shown twice
+        when entering \texttt{ps}. Also, I never get the \texttt{<defunct>}.
+        Clearly, this is both an easier and a better solution.
 
     \subsection{Signal detection}
         To use signal detection for background processes instead, I do not use
@@ -105,7 +114,7 @@
         The problem I had here was with timing, if I time it from the signal handler,
         the time might be way to long of the foreground process was running for a
         longer time than the background processes.
- 
+
     \subsection{cd}
         Most of the commands you use work out of the box, the exception is
         \texttt{cd}. This has to change the current working directory for
@@ -120,11 +129,18 @@
         an existing directory or not.
 
    \subsection{Ctrl-C}
-        Since Ctrl-C should only started processes and not \emph{miniShell}
-        itself, I simply assigned a handler for SIGINT which only returns.
-        Something that is different from how bash handles this is if I start
-        a couple of sleeps in the background, and then one in the foreground,
-        all the sleeps gets killed by the Ctrl-C.
+        Since Ctrl-C should only terminate started processes and not
+        \emph{miniShell} itself, I used \texttt{sigignore} to ignore the signal
+        in the shell. When forking new processes, I reset the signal to
+        default using \texttt{sigset}. The tricky thing here is that all the
+        processes in the same process group gets killed when entering Ctrl-C.
+        This is not the behaviour in bash. If I skip resetting for background
+        processes, they can not be terminated with \texttt{pkill}, which is not
+        wanted either. So, I changed the process group with \texttt{setsid}.
+        This has the difference in behaviour from bash that the process will
+        not be shown when entering \texttt{ps} without adding the \texttt{-A}
+        option. I don't know how to solve this better at the moment, but I
+        think it is good enough for now.
 
    \subsection{digenv}
         This was solved basically by forking four times in a row and setting up three
@@ -207,8 +223,8 @@
     on background processes. I also would have split the program into a \emph{(M)VC}
     pattern to allow unit testing of all ''non-prompt'' functions.
 
-    Now that I know that timing of background processes is not needed, I think
-    that the use of pipes might no longer be needed. Prints could be done from
+    Now that I know that timing of background processes is not needed,
+    the use of pipes might no longer be needed. Prints could be done from
     the signal handler instead of sending data to the main function. On the
     other hand, I am not quite sure that prints from within the signal handler
     is guaranteed to work all the time. I have trouble finding this in the
