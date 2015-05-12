@@ -154,7 +154,6 @@ void interpret(char **args, int is_background) {
     int pid; 
     struct timeval start_time;
     struct timeval stop_time;
-    proc_time_t proc_time;
     char *home;
 
     /* Check for built in commands 
@@ -178,116 +177,62 @@ void interpret(char **args, int is_background) {
         exit(0);
 
     } else {
+
         /* No built in command was entered, so now we try to execute the command */
-        if(SIGDET) {
 
-            /* Do not wait for background processes, let child_listener handle
-             * them */
+        /* Suspend any signals from background processes during foreground
+         * process */
+        if(!is_background) {
+            sighold(SIGCHLD);
+        }
 
-            if(!is_background) {
-                /* Block any signals from background processes during
-                 * foreground process */
-                sighold(SIGCHLD);
-            }
+        pid = fork();
+        if(0 == pid) {
 
-            pid = fork();
-            if(0 == pid) {
-
-                /* Set background processes to a new process group id to make
-                 * them not react to Ctrl-C but still to SIGINT via pkill */
-                if(is_background) {
-                    if(-1 == setsid()) {
-                        perror("setsid");
-                        exit(-1);
-                    } 
-                }
-                /* Reset SIGINT handling */
-                if(-1 == (long)sigset(SIGINT, SIG_DFL)) {
-                    perror("sigset");
+            /* Set background processes to a new process group id to make
+             * them not react to Ctrl-C but still to SIGINT via pkill */
+            if(is_background) {
+                if(-1 == setsid()) {
+                    perror("setsid");
                     exit(-1);
-                }
-                execvp(args[0], args);
-
-                /* If we get here, execlp returned -1 */
-                perror("exec");
-                exit(-1);
-
-            } else {
-                /* In parent */
-                if(!is_background) {
-                    /* In parent of executing process */
-                    /* Start timer */
-                    gettimeofday(&start_time, NULL);
-                    if(-1 == waitpid(pid, NULL, 0)) {
-                        perror("waitpid");
-                        exit(-1);
-                    }
-
-                    /* Reset signal handling */
-                    sigrelse(SIGCHLD);
-
-                    /* Stop timer */
-                    gettimeofday(&stop_time, NULL);
-
-                    printf("Process %d terminated, %ld milliseconds.\n", 
-                            pid,
-                            (stop_time.tv_sec - start_time.tv_sec)*1000 +
-                            (stop_time.tv_usec - start_time.tv_usec)/1000
-                          );
-                } else {
-                    /* Process was background and signal when terminated should be catched
-                     * by child_listener */
-                     printf("Process %d started in background\n", pid);
-                }
+                } 
             }
+            /* Reset SIGINT handling */
+            if(-1 == (long)sigset(SIGINT, SIG_DFL)) {
+                perror("sigset");
+                exit(-1);
+            }
+            execvp(args[0], args);
+
+            /* If we get here, execlp returned -1 */
+            perror("exec");
+            exit(-1);
 
         } else {
-            /* Try to execute given command with polling */
-            pid = fork();
-            if(0 == pid) {
-
-                /* in child of shell, execute the command */
-
-                /* Set background processes to a new process group id to make
-                 * them not react to Ctrl-C but still to SIGINT via pkill */
-                if(is_background) {
-                    if(-1 == setsid()) {
-                        perror("setsid");
-                        exit(-1);
-                    } 
-                }
-                /* Reset SIGINT handling */
-                if(-1 == (long)sigset(SIGINT, SIG_DFL)) {
-                    perror("sigset");
+            /* In parent */
+            if(!is_background) {
+                /* In parent of executing process */
+                /* Start timer */
+                gettimeofday(&start_time, NULL);
+                if(-1 == waitpid(pid, NULL, 0)) {
+                    perror("waitpid");
                     exit(-1);
                 }
-                execvp(args[0], args);
 
-                /* If we get here, execlp returned -1 */
-                perror("exec");
-                exit(-1);
+                /* Reset signal handling */
+                sigrelse(SIGCHLD);
 
+                /* Stop timer */
+                gettimeofday(&stop_time, NULL);
+
+                printf("Process %d terminated, %ld milliseconds.\n", 
+                        pid,
+                        (stop_time.tv_sec - start_time.tv_sec)*1000 +
+                        (stop_time.tv_usec - start_time.tv_usec)/1000
+                      );
             } else {
-                /* In parent */
-                /* Start timer */
-                if(!is_background) {
-                    gettimeofday(&start_time, NULL);
-                    waitpid(pid, NULL, 0);
-                    /* Stop timer */
-                    gettimeofday(&stop_time, NULL);
-                    
-                    /* Prepare stats to send */
-                    proc_time.pid = pid;
-                    printf("Process %d terminated, %ld milliseconds.\n", 
-                            pid,
-                            (stop_time.tv_sec - start_time.tv_sec)*1000 +
-                            (stop_time.tv_usec - start_time.tv_usec)/1000
-                          );
-
-                } else {
-                    /* Continue to prompt and poll from there for finished
-                     * processes */
-                }
+                /* Process was background and is acknowledged later */
+                printf("Process %d started in background.\n", pid);
             }
         }
     }
